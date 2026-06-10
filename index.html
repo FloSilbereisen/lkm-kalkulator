@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="T1 CRC LKM">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#ffffff">
+<title>T1 CRC – LKM-Risikokalkulator</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #9b9b97;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 10px;
+    --radius-lg: 14px;
+    --green-bg: #e1f5ee; --green-border: #5dcaa5; --green-text: #085041;
+    --amber-bg: #faeeda; --amber-border: #fac775; --amber-text: #633806;
+    --orange-bg: #faece7; --orange-border: #f0997b; --orange-text: #712b13;
+    --red-bg:   #fcebeb; --red-border:   #f09595; --red-text:   #791f1f;
+    --blue-bg:  #e6f1fb; --blue-border:  #85b7eb; --blue-text:  #0c447c;
+    --info-bg:  #faeeda; --info-border:  #fac775; --info-text:  #633806;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #252522; --bg3: #2e2e2b;
+      --text: #f0ede8; --text2: #a8a8a2; --text3: #6e6e68;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --green-bg: #042c24; --green-border: #1d9e75; --green-text: #9fe1cb;
+      --amber-bg: #2c1e06; --amber-border: #ba7517; --amber-text: #fac775;
+      --orange-bg: #2c1208; --orange-border: #d85a30; --orange-text: #f5c4b3;
+      --red-bg: #200e0e; --red-border: #a32d2d; --red-text: #f7c1c1;
+      --blue-bg: #042c53; --blue-border: #378add; --blue-text: #b5d4f4;
+      --info-bg: #2c1e06; --info-border: #ba7517; --info-text: #fac775;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { font-size: 16px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header {
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    padding: 14px 16px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 16px; font-weight: 600; color: var(--text); }
+  header p  { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .container { max-width: 680px; margin: 0 auto; padding: 12px 12px 24px; }
+  .sec-label {
+    font-size: 11px; font-weight: 600; color: var(--text3);
+    text-transform: uppercase; letter-spacing: .07em;
+    margin: 16px 0 8px;
+  }
+  .param-card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .param-label { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+  .btn-group { display: flex; flex-wrap: wrap; gap: 6px; }
+  .opt-btn {
+    font-size: 13px;
+    padding: 6px 13px;
+    border: 0.5px solid var(--border2);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background .12s;
+    -webkit-appearance: none;
+  }
+  .opt-btn:active { transform: scale(0.97); }
+  .opt-btn.selected {
+    background: var(--blue-bg);
+    border-color: var(--blue-border);
+    color: var(--blue-text);
+    font-weight: 500;
+  }
+  .result-card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-top: 4px;
+  }
+  .result-top { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .risk-num  { font-size: 48px; font-weight: 600; line-height: 1; color: var(--text); }
+  .risk-meta { display: flex; flex-direction: column; gap: 3px; padding-bottom: 4px; }
+  .risk-level{ font-size: 15px; font-weight: 600; }
+  .risk-pts  { font-size: 12px; color: var(--text2); }
+  .auc-pill  {
+    display: inline-block; font-size: 11px; font-weight: 500;
+    background: var(--green-bg); border: 0.5px solid var(--green-border);
+    color: var(--green-text); border-radius: 6px; padding: 2px 8px;
+  }
+  .bar-wrap { margin-bottom: 6px; }
+  .bar-bg {
+    height: 8px; background: var(--bg3); border-radius: 4px;
+    overflow: hidden; border: 0.5px solid var(--border);
+  }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width .4s ease, background .3s; }
+  .bar-ticks { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-top: 4px; }
+  .placeholder {
+    text-align: center; padding: 20px 0 8px;
+    font-size: 13px; color: var(--text3); font-style: italic;
+  }
+  .missing-hint { font-size: 11px; color: var(--text3); margin-top: 8px; font-style: italic; line-height: 1.5; }
+  .info-box {
+    border: 0.5px solid var(--info-border);
+    background: var(--info-bg);
+    border-radius: var(--radius-lg);
+    padding: 12px 14px;
+    margin-top: 10px;
+  }
+  .info-box-title {
+    font-size: 12px; font-weight: 600; color: var(--amber-text);
+    margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+  }
+  .info-box-body { font-size: 12px; color: var(--info-text); line-height: 1.6; }
+  .info-box-body strong { font-weight: 600; }
+  .risk-scale {
+    display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap;
+  }
+  .scale-item {
+    flex: 1; min-width: 60px; border-radius: 6px; padding: 5px 8px; text-align: center;
+    font-size: 11px; font-weight: 500;
+  }
+  .scale-green  { background: var(--green-bg);  color: var(--green-text);  border: 0.5px solid var(--green-border); }
+  .scale-amber  { background: var(--amber-bg);  color: var(--amber-text);  border: 0.5px solid var(--amber-border); }
+  .scale-orange { background: var(--orange-bg); color: var(--orange-text); border: 0.5px solid var(--orange-border); }
+  .scale-red    { background: var(--red-bg);    color: var(--red-text);    border: 0.5px solid var(--red-border); }
+  .scale-val { font-size: 10px; font-weight: 400; margin-top: 1px; }
+  .reset-btn {
+    width: 100%; margin-top: 12px;
+    font-size: 13px; padding: 10px;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    background: transparent; color: var(--text2);
+    cursor: pointer;
+  }
+  .reset-btn:active { background: var(--bg2); }
+  footer {
+    font-size: 10px; color: var(--text3); line-height: 1.7;
+    padding: 0 2px; margin-top: 12px;
+    border-top: 0.5px solid var(--border);
+    padding-top: 12px;
+  }
+  footer a { color: var(--text3); }
+  .disclaimer-box {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-top: 10px;
+    font-size: 10px;
+    color: var(--text3);
+    line-height: 1.7;
+  }
+  .disclaimer-box strong { color: var(--text2); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>T1 CRC – LKM-Risiko</h1>
+  <p>Lymphknotenmetastasierung nach endoskopischer Resektion</p>
+</header>
+
+<div class="container">
+  <p class="sec-label">Parameter</p>
+  <div id="paramGrid"></div>
+
+  <p class="sec-label">Ergebnis</p>
+  <div class="result-card">
+    <div id="resultContent">
+      <p class="placeholder">Bitte alle 6 Parameter auswählen</p>
+    </div>
+    <div class="risk-scale">
+      <div class="scale-item scale-green">Niedrig<div class="scale-val">&lt; 5%</div></div>
+      <div class="scale-item scale-amber">Moderat<div class="scale-val">5–10%</div></div>
+      <div class="scale-item scale-orange">Erhöht<div class="scale-val">10–20%</div></div>
+      <div class="scale-item scale-red">Hoch<div class="scale-val">&gt; 20%</div></div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <p class="info-box-title">⚠ Evidenzhinweis: Wang et al. 2024</p>
+    <p class="info-box-body">
+      Wang et al. (<em>Int J Colorectal Dis</em> 2024, AUC 79,3%) identifizierten das
+      <strong>deprimierte endoskopische Erscheinungsbild</strong> als unabhängigen Risikofaktor
+      für LKM – zusätzlich zu den hier kalkulierten Parametern. Dieser Faktor fließt in die
+      Berechnung <strong>nicht ein</strong> (unterschiedliche Kohorte, keine publizierten
+      Koeffizienten). Bei deprimiertem Wachstumsmuster gilt das berechnete Risiko als
+      <strong>konservative Unterschätzung</strong>.
+    </p>
+  </div>
+
+  <button class="reset-btn" onclick="resetAll()">Eingaben zurücksetzen</button>
+
+  <div class="disclaimer-box">
+    <strong>Quelle &amp; Lizenzhinweis</strong><br>
+    This tool implements the prediction model published in:<br>
+    Ikematsu et al. <em>Gastrointest Endosc</em> 97(6):1119–1128 (2023).
+    DOI: 10.1016/j.gie.2022.12.012<br>
+    Not affiliated with or endorsed by the authors or publisher (Elsevier).<br>
+    Mathematical coefficients derived from a published nomogram are not subject to copyright.
+    For clinical decision support only — not a substitute for individual clinical judgement.
+  </div>
+
+  <footer>
+    Modell: Ikematsu et al. (2023) · Nationwide multizentrisches Nomogramm · AUC ~79%<br>
+    Ergänzende Evidenz: Wang et al., <em>Int J Colorectal Dis</em> 39(1):46 (2024)
+  </footer>
+</div>
+
+<script>
+const PARAMS = [
+  { id:"sex",      label:"Geschlecht",
+    options:[{l:"Männlich (M)",p:0},{l:"Weiblich (F)",p:29}] },
+  { id:"location", label:"Tumorlokalisation",
+    options:[{l:"Transversum (T)",p:0},{l:"Aszend. / Zökum / Desz. (A/C/D)",p:30},
+             {l:"Sigma / Unteres Rektum (S/Rb)",p:55},{l:"Rektosigma / Ob. Rektum (RS/Ra)",p:65}] },
+  { id:"grade",    label:"Tumorgrad",
+    options:[{l:"G1 – gut differenziert",p:0},{l:"G2 – mäßig differenziert",p:30},
+             {l:"G3 – schlecht differenziert",p:85}] },
+  { id:"lvi",      label:"Lymphovaskuläre Invasion (LVI)",
+    options:[{l:"Negativ",p:0},{l:"Positiv",p:65}] },
+  { id:"budding",  label:"Tumor Budding",
+    options:[{l:"BD1 – kein / niedrig",p:0},{l:"BD2/3 – moderat / hoch",p:40}] },
+  { id:"sm",       label:"SM-Invasionstiefe",
+    options:[{l:"SM1 (< 1000 µm)",p:0},{l:"SM2 (1000–1999 µm)",p:65},{l:"SM3 (≥ 2000 µm)",p:100}] }
+];
+
+const sel = {};
+
+function logit(pts) {
+  return 1 / (1 + Math.exp(-(-5.15 + 0.0182 * pts)));
+}
+
+function riskColor(p) {
+  if (p < .05) return { bar:"#1D9E75", level:"Niedrig",  cls:"green"  };
+  if (p < .10) return { bar:"#EF9F27", level:"Moderat",  cls:"amber"  };
+  if (p < .20) return { bar:"#D85A30", level:"Erhöht",   cls:"orange" };
+  return              { bar:"#E24B4A", level:"Hoch",     cls:"red"    };
+}
+
+function render() {
+  const missing = PARAMS.filter(p => sel[p.id] === undefined);
+  const el = document.getElementById("resultContent");
+
+  if (missing.length) {
+    el.innerHTML = '<p class="placeholder">Bitte alle 6 Parameter auswählen</p>' +
+      (missing.length < 6
+        ? '<p class="missing-hint">Noch ausstehend: ' +
+          missing.map(p => p.label).join(", ") + '</p>'
+        : "");
+    return;
+  }
+
+  const total = PARAMS.reduce((s, p) => s + sel[p.id], 0);
+  const prob  = logit(total);
+  const pct   = (prob * 100).toFixed(1);
+  const c     = riskColor(prob);
+  const barW  = Math.min((prob / 0.6) * 100, 100).toFixed(1);
+  const cssColor = "var(--" + c.cls + "-text)";
+
+  el.innerHTML =
+    '<div class="result-top">' +
+      '<span class="risk-num">' + pct + '%</span>' +
+      '<div class="risk-meta">' +
+        '<span class="risk-level" style="color:' + cssColor + '">' + c.level + '</span>' +
+        '<span class="risk-pts">' + total + ' Punkte / max. 414</span>' +
+        '<span class="auc-pill">Modell-AUC ~79%</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="bar-wrap">' +
+      '<div class="bar-bg"><div class="bar-fill" style="width:' + barW + '%;background:' + c.bar + '"></div></div>' +
+      '<div class="bar-ticks"><span>0%</span><span>10%</span><span>20%</span><span>30%</span><span>40%</span><span>60%</span></div>' +
+    '</div>';
+}
+
+function resetAll() {
+  Object.keys(sel).forEach(k => delete sel[k]);
+  document.querySelectorAll(".opt-btn").forEach(b => b.classList.remove("selected"));
+  render();
+}
+
+const grid = document.getElementById("paramGrid");
+PARAMS.forEach(param => {
+  const card = document.createElement("div");
+  card.className = "param-card";
+  const lbl = document.createElement("p");
+  lbl.className = "param-label";
+  lbl.textContent = param.label;
+  const grp = document.createElement("div");
+  grp.className = "btn-group";
+  grp.id = "bg_" + param.id;
+  param.options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.className = "opt-btn";
+    btn.textContent = opt.l;
+    btn.addEventListener("click", () => {
+      sel[param.id] = opt.p;
+      grp.querySelectorAll(".opt-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      render();
+    });
+    grp.appendChild(btn);
+  });
+  card.appendChild(lbl);
+  card.appendChild(grp);
+  grid.appendChild(card);
+});
+
+render();
+
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE='lkm-v1';
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/'])));self.skipWaiting();});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
+self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});`;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
